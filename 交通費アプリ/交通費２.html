@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>交通費精算アプリ</title>
+
+  <!-- ★ スマホ向け表示 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- ★ PWA 用設定 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="交通費精算">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f5f5f7;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 16px auto;
+      padding: 16px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 22px;
+    }
+
+    .description {
+      margin-bottom: 24px;
+      color: #555;
+      font-size: 14px;
+    }
+
+    /* ★ 5 → 6 にだけ変更 */
+    form {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+    }
+
+    label {
+      font-weight: 600;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    input[type="month"] {
+      padding: 10px 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #007aff;
+      box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-primary {
+      background: #007aff;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #e5e5ea;
+      color: #333;
+    }
+
+    .btn-danger {
+      background: #ff3b30;
+      color: white;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: #555;
+      border: 1px solid #ddd;
+    }
+
+    .summary-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .total {
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    thead {
+      background: #f2f2f7;
+    }
+
+    th,
+    td {
+      padding: 8px 6px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+
+    th {
+      font-weight: 600;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    .amount-cell {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .actions-cell {
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .actions-cell > * {
+      margin: 0 2px;
+    }
+
+    .actions-link {
+      display: inline-block;
+      text-decoration: none;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .footer-actions {
+      margin-top: 12px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .edit-status {
+      font-size: 12px;
+      color: #ff3b30;
+      margin-bottom: 16px;
+      min-height: 1.2em;
+    }
+
+    /* タブレット以下 */
+    @media (max-width: 768px) {
+      body {
+        background: #ffffff;
+      }
+
+      .container {
+        margin: 0;
+        padding: 12px;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      table {
+        font-size: 12px;
+      }
+    }
+
+    /* スマホ縦 */
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 20px;
+      }
+
+      .description {
+        font-size: 13px;
+      }
+
+      form {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-bar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .total {
+        align-self: flex-end;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>交通費精算</h1>
+    <p class="description">
+      日付・目的・出発地・到着地・金額・往復かどうかを入力して「追加」を押すだけで、一覧と合計金額を自動集計します。<br />
+      行の「乗換案内」ボタンからYahoo!路線情報で経路検索、<br />
+      「編集」ボタンで入力内容を再編集できます。
+    </p>
+
+    <!-- 入力フォーム -->
+    <form id="expense-form">
+      <div class="field">
+        <label for="date">日付</label>
+        <input type="date" id="date" required />
+      </div>
+      <div class="field">
+        <label for="purpose">目的</label>
+        <input type="text" id="purpose" placeholder="例：顧客訪問A社" required />
+      </div>
+      <div class="field">
+        <label for="from">出発地</label>
+        <input type="text" id="from" placeholder="例：自宅" required />
+      </div>
+      <div class="field">
+        <label for="to">到着地</label>
+        <input type="text" id="to" placeholder="例：新宿駅" required />
+      </div>
+      <div class="field">
+        <label for="amount">金額（円）</label>
+        <input
+          type="number"
+          id="amount"
+          min="0"
+          step="1"
+          placeholder="例：320"
+          required
+        />
+      </div>
+      <!-- ★ 追加：往復チェックボックス -->
+      <div class="field">
+        <label for="roundtrip">往復</label>
+        <input type="checkbox" id="roundtrip" />
+      </div>
+
+      <button type="submit" class="btn-primary" id="submitBtn">追加</button>
+    </form>
+
+    <!-- 編集状態表示 & キャンセルボタン -->
+    <div class="footer-actions" style="justify-content:flex-start; margin-top:4px;">
+      <div class="edit-status" id="editStatus"></div>
+      <button type="button" class="btn-ghost" id="cancelEdit" style="display:none;">
+        編集をキャンセル
+      </button>
+    </div>
+
+    <!-- 絞り込み＆合計 -->
+    <div class="summary-bar">
+      <div class="filter-group">
+        <span>月で絞り込み：</span>
+        <input type="month" id="monthFilter" />
+        <button type="button" class="btn-secondary" id="clearFilter">
+          クリア
+        </button>
+      </div>
+      <div class="total">
+        合計金額：<span id="total-amount">0</span> 円
+      </div>
+    </div>
+
+    <!-- 一覧テーブル -->
+    <table>
+      <thead>
+        <tr>
+          <th>日付</th>
+          <th>目的</th>
+          <th>出発地</th>
+          <th>到着地</th>
+          <th>往復</th>
+          <th>金額（円）</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="expense-tbody"></tbody>
+    </table>
+
+    <div class="footer-actions">
+      <button type="button" class="btn-danger" id="clearAll">
+        すべて削除
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "transport_expenses_v1";
+
+    const form = document.getElementById("expense-form");
+    const dateInput = document.getElementById("date");
+    const purposeInput = document.getElementById("purpose");
+    const fromInput = document.getElementById("from");
+    const toInput = document.getElementById("to");
+    const amountInput = document.getElementById("amount");
+    const roundtripInput = document.getElementById("roundtrip");
+    const monthFilterInput = document.getElementById("monthFilter");
+    const clearFilterBtn = document.getElementById("clearFilter");
+    const clearAllBtn = document.getElementById("clearAll");
+    const tbody = document.getElementById("expense-tbody");
+    const totalAmountSpan = document.getElementById("total-amount");
+    const submitBtn = document.getElementById("submitBtn");
+    const editStatus = document.getElementById("editStatus");
+    const cancelEditBtn = document.getElementById("cancelEdit");
+
+    let expenses = [];
+    let editIndex = null; // 編集中の行インデックス（nullなら新規）
+
+    // ローカルストレージから読み込み
+    function loadExpenses() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          expenses = JSON.parse(raw);
+        } else {
+          expenses = [];
+        }
+      } catch (e) {
+        console.error("データの読み込みに失敗しました", e);
+        expenses = [];
+      }
+    }
+
+    // ローカルストレージへ保存
+    function saveExpenses() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+      } catch (e) {
+        console.error("データの保存に失敗しました", e);
+        alert("データの保存に失敗しました。保存容量などを確認してください。");
+      }
+    }
+
+    // Yahoo!路線情報用URL生成
+    function buildTransitUrl(from, to) {
+      const base = "https://transit.yahoo.co.jp/search/result?";
+      const query =
+        "from=" + encodeURIComponent(from) +
+        "&to=" + encodeURIComponent(to);
+      return base + query;
+    }
+
+    // 編集モードのUI更新
+    function setEditMode(index) {
+      if (index === null || index === undefined) {
+        editIndex = null;
+        submitBtn.textContent = "追加";
+        editStatus.textContent = "";
+        cancelEditBtn.style.display = "none";
+      } else {
+        editIndex = index;
+        const exp = expenses[index];
+        dateInput.value = exp.date;
+        purposeInput.value = exp.purpose;
+        fromInput.value = exp.from;
+        toInput.value = exp.to;
+        amountInput.value = exp.amount;
+        roundtripInput.checked = !!exp.roundtrip;
+        submitBtn.textContent = "更新";
+        editStatus.textContent = "編集モード：選択した行の内容を更新します。";
+        cancelEditBtn.style.display = "inline-block";
+      }
+    }
+
+    // 表示を更新
+    function renderTable() {
+      tbody.innerHTML = "";
+      const monthFilter = monthFilterInput.value;
+      let total = 0;
+
+      expenses.forEach((exp, index) => {
+        if (monthFilter && !exp.date.startsWith(monthFilter)) {
+          return;
+        }
+
+        const tr = document.createElement("tr");
+
+        const tdDate = document.createElement("td");
+        tdDate.textContent = exp.date;
+
+        const tdPurpose = document.createElement("td");
+        tdPurpose.textContent = exp.purpose;
+
+        const tdFrom = document.createElement("td");
+        tdFrom.textContent = exp.from;
+
+        const tdTo = document.createElement("td");
+        tdTo.textContent = exp.to;
+
+        const tdRoundtrip = document.createElement("td");
+        tdRoundtrip.textContent = exp.roundtrip ? "往復" : "";
+
+        const tdAmount = document.createElement("td");
+        tdAmount.className = "amount-cell";
+        const amountNumber = Number(exp.amount) || 0;
+        tdAmount.textContent = amountNumber.toLocaleString();
+
+        const tdActions = document.createElement("td");
+        tdActions.className = "actions-cell";
+
+        // 乗換案内リンク
+        const transitLink = document.createElement("a");
+        transitLink.textContent = "乗換案内";
+        transitLink.href = buildTransitUrl(exp.from, exp.to);
+        transitLink.target = "_blank";
+        transitLink.rel = "noopener noreferrer";
+        transitLink.className = "actions-link btn-primary";
+
+        // 編集ボタン
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "編集";
+        editBtn.className = "btn-secondary";
+        editBtn.dataset.action = "edit";
+        editBtn.dataset.index = index;
+
+        // 削除ボタン
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "削除";
+        deleteBtn.className = "btn-secondary";
+        deleteBtn.dataset.action = "delete";
+        deleteBtn.dataset.index = index;
+
+        tdActions.appendChild(transitLink);
+        tdActions.appendChild(editBtn);
+        tdActions.appendChild(deleteBtn);
+
+        tr.appendChild(tdDate);
+        tr.appendChild(tdPurpose);
+        tr.appendChild(tdFrom);
+        tr.appendChild(tdTo);
+        tr.appendChild(tdRoundtrip);
+        tr.appendChild(tdAmount);
+        tr.appendChild(tdActions);
+
+        tbody.appendChild(tr);
+
+        total += amountNumber;
+      });
+
+      totalAmountSpan.textContent = total.toLocaleString();
+    }
+
+    // フォーム送信時の処理（追加 or 更新）
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const date = dateInput.value;
+      const purpose = purposeInput.value.trim();
+      const from = fromInput.value.trim();
+      const to = toInput.value.trim();
+      const amount = parseInt(amountInput.value, 10);
+      const roundtrip = roundtripInput.checked;
+
+      if (!date || !purpose || !from || !to || isNaN(amount)) {
+        alert("すべての項目を正しく入力してください。");
+        return;
+      }
+
+      const newItem = { date, purpose, from, to, amount, roundtrip };
+
+      if (editIndex !== null) {
+        // 既存行の更新
+        expenses[editIndex] = newItem;
+      } else {
+        // 新規追加
+        expenses.push(newItem);
+      }
+
+      saveExpenses();
+      renderTable();
+      form.reset();
+      setEditMode(null); // 編集モード解除
+    });
+
+    // テーブル内のボタン（編集／削除）の処理
+    tbody.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target.tagName.toLowerCase() === "button") {
+        const index = Number(target.dataset.index);
+        const action = target.dataset.action;
+
+        if (Number.isNaN(index)) return;
+
+        if (action === "delete") {
+          const ok = confirm("この行を削除しますか？");
+          if (ok) {
+            expenses.splice(index, 1);
+            saveExpenses();
+            renderTable();
+            // 削除した行を編集中だった場合は編集モード解除
+            if (editIndex === index) {
+              setEditMode(null);
+              form.reset();
+            }
+          }
+        } else if (action === "edit") {
+          setEditMode(index);
+        }
+      }
+    });
+
+    // 月フィルタ変更時
+    monthFilterInput.addEventListener("change", () => {
+      renderTable();
+    });
+
+    // フィルタクリア
+    clearFilterBtn.addEventListener("click", () => {
+      monthFilterInput.value = "";
+      renderTable();
+    });
+
+    // 全削除
+    clearAllBtn.addEventListener("click", () => {
+      if (
+        expenses.length > 0 &&
+        confirm("すべてのデータを削除します。よろしいですか？")
+      ) {
+        expenses = [];
+        saveExpenses();
+        renderTable();
+        setEditMode(null);
+        form.reset();
+      }
+    });
+
+    // 編集キャンセル
+    cancelEditBtn.addEventListener("click", () => {
+      setEditMode(null);
+      form.reset();
+    });
+
+    // 初期化
+    loadExpenses();
+    renderTable();
+    setEditMode(null);
+  </script>
+
+  <!-- ★ Service Worker 登録（PWAとして動かす） -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
+    }
+  </script>
+</body>
+</html>
